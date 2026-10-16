@@ -1,0 +1,6 @@
+# Signing & secrets — JANGAN commit
+*.jks
+*.keystore
+**/key.properties
+.env
+.env.*
