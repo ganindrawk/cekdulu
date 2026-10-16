@@ -1,0 +1,99 @@
+name: Build APK
+
+# Build otomatis APK release setiap ada push ke main yang menyentuh
+# kode aplikasi, atau saat dijalankan manual dari tab Actions.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Izin membuat GitHub Release (tag + upload APK).
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build APK (split per ABI)
+        run: >
+          flutter build apk --release --split-per-abi
+          --dart-define=SUPABASE_URL=${{ vars.SUPABASE_URL }}
+          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Rename APKs
+        run: |
+          cd build/app/outputs/flutter-apk
+          for f in app-*-release.apk; do
+            abi=$(echo "$f" | sed 's/^app-//; s/-release\.apk$//')
+            mv "$f" "cekdulu-$abi.apk"
+          done
+          ls -la cekdulu-*.apk
+
+      - name: Upload APKs (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: cekdulu-apk
+          path: app/build/app/outputs/flutter-apk/cekdulu-*.apk
+          retention-days: 14
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: CekDulu build ${{ github.run_number }}
+          prerelease: true
+          files: app/build/app/outputs/flutter-apk/cekdulu-*.apk
+          body: |
+            APK hasil build otomatis dari commit ${{ github.sha }}.
+
+            Pilih sesuai HP kamu (umumnya **cekdulu-arm64-v8a.apk**).
+
+            Catatan: build CI ini ditandatangani debug key — uninstall
+            aplikasi CekDulu versi release-key sebelum install.
+
+# ---------------------------------------------------------------------------
+# Yang perlu disiapkan sekali di repo Settings (hanya pemilik repo):
+#
+# 1. Settings > Secrets and variables > Actions > Variables:
+#      SUPABASE_URL = https://mfppajuxqugxncpgkxun.supabase.co
+# 2. Settings > Secrets and variables > Actions > Secrets:
+#      SUPABASE_ANON_KEY = <publishable key Supabase>
+#
+# Catatan signing: tanpa key.properties, APK hasil CI ditandatangani
+# debug key (fallback bawaan build.gradle.kts) — cukup untuk uji
+# sideload. Untuk APK siap Play Store, tambahkan secrets:
+#   KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD
+# lalu generate android/key.properties di workflow sebelum build.
+# ---------------------------------------------------------------------------
