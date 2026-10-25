@@ -1,0 +1,8 @@
+# Signing & secrets — JANGAN commit
+*.jks
+*.keystore
+# Pengecualian: debug keystore CI memang disengaja di-commit (bukan rahasia)
+!app/android/debug.keystore
+**/key.properties
+.env
+.env.*
