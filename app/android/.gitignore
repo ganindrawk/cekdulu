@@ -1,0 +1,18 @@
+gradle-wrapper.jar
+/.gradle
+/captures/
+/gradlew
+/gradlew.bat
+/local.properties
+GeneratedPluginRegistrant.java
+.cxx/
+
+# Remember to never publicly share your keystore.
+# See https://flutter.dev/to/reference-keystore
+key.properties
+**/*.keystore
+# Pengecualian: debug.keystore CI disengaja di-commit (bukan rahasia,
+# kredensial debug standar "android") agar semua build CI satu signature.
+!debug.keystore
+**/*.jks
+build/
